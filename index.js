@@ -1,5 +1,5 @@
 const express = require('express')
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const cors = require('cors');
 require('dotenv').config()
 const { json } = require('express/lib/response');
@@ -45,18 +45,17 @@ async function run() {
         const usersCollection = client.db("doctort's_portal").collection('users');
         const doctorsCollection = client.db("doctort's_portal").collection('doctor');
 
-       const verifyAdmin=async(req,res,next)=>{
-        const requester = req.decoded.email //requester hocche j onno ekjon user k admin diccee
+        const verifyAdmin = async (req, res, next) => {
+            const requester = req.decoded.email //requester hocche j onno ekjon user k admin diccee
             const requesterAccount = await usersCollection.findOne({ email: requester })
-            if (requesterAccount.role === 'admin')
-            {
+            if (requesterAccount.role === 'admin') {
                 next()
             }
             else {
                 res.status(403).send({ message: 'Forbidden' })
             }
 
-       }
+        }
 
         app.get('/service', async (req, res) => {
             const query = {};
@@ -74,18 +73,18 @@ async function run() {
         })
 
 
-        app.put('/user/admin/:email', verifyJWT,verifyAdmin, async (req, res) => {
+        app.put('/user/admin/:email', verifyJWT, verifyAdmin, async (req, res) => {
             const email = req.params.email;
-             //condition er maddome j request dicce she admin kina dekhsi,jodi tar role admin hoi ta hole she onno jon k admin dite parbe,,noito parbena...fornidden maessage dibe
+            //condition er maddome j request dicce she admin kina dekhsi,jodi tar role admin hoi ta hole she onno jon k admin dite parbe,,noito parbena...fornidden maessage dibe
 
-                const filter = { email: email }
-                const updateDoc = {
-                    $set: { role: 'admin' },//database user role addmin hishebe set hobe
-                }
-                const result = await usersCollection.updateOne(filter, updateDoc);
-                res.send({ result });
-            
-            
+            const filter = { email: email }
+            const updateDoc = {
+                $set: { role: 'admin' },//database user role addmin hishebe set hobe
+            }
+            const result = await usersCollection.updateOne(filter, updateDoc);
+            res.send({ result });
+
+
 
 
         });
@@ -161,20 +160,27 @@ async function run() {
 
 
         });
-        app.post('/doctor', verifyJWT,verifyAdmin, async ( req,res) => {
+        app.post('/doctor', verifyJWT, verifyAdmin, async (req, res) => {
             const doctor = req.body
             const result = await doctorsCollection.insertOne(doctor)
             /* const query={name:doctor.name,email:doctor.email,specialty:doctor.specialty,img:doctor.img} */
             res.send(result)
         })
-        app.delete('/doctor/:email', verifyJWT,verifyAdmin, async ( req,res) => {
+        app.delete('/doctor/:email', verifyJWT, verifyAdmin, async (req, res) => {
             const email = req.params.email
-            const query={email:email}
+            const query = { email: email }
             const result = await doctorsCollection.deleteOne(query)
             /* const query={name:doctor.name,email:doctor.email,specialty:doctor.specialty,img:doctor.img} */
             res.send(result)
-            
 
+
+
+        })
+        app.get('/payment/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) }
+            const booking = await bookingsCollection.findOne(query)
+            res.send(booking)
         })
 
 
@@ -199,8 +205,8 @@ async function run() {
 
 
         })
-        app.get('/doctor', async(req,res)=>{
-            const doctor=await doctorsCollection.find().toArray()
+        app.get('/doctor', async (req, res) => {
+            const doctor = await doctorsCollection.find().toArray()
             res.send(doctor);
 
         })
