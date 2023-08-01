@@ -43,30 +43,40 @@ async function run() {
         const serviceCollection = client.db("doctort's_portal").collection('services');
         const bookingsCollection = client.db("doctort's_portal").collection('bookings');
         const usersCollection = client.db("doctort's_portal").collection('users');
+        const doctorsCollection = client.db("doctort's_portal").collection('doctor');
 
+       const verifyAdmin=async(req,res,next)=>{
+        const requester = req.decoded.email //requester hocche j onno ekjon user k admin diccee
+            const requesterAccount = await usersCollection.findOne({ email: requester })
+            if (requesterAccount.role === 'admin')
+            {
+                next()
+            }
+            else {
+                res.status(403).send({ message: 'Forbidden' })
+            }
 
+       }
 
         app.get('/service', async (req, res) => {
             const query = {};
-            const cursor = serviceCollection.find(query)
+            const cursor = serviceCollection.find(query).project({ name: 1 })
             const services = await cursor.toArray();
             res.send(services);
 
         });
-        
-        app.get('/admin/:email',async(req,res)=>{
-         const email=req.params.email
-         const user=await usersCollection.findOne({email:email})
-         const isAdmin=user.role ==='admin'
-         res.send({admin:isAdmin})
+
+        app.get('/admin/:email', async (req, res) => {
+            const email = req.params.email
+            const user = await usersCollection.findOne({ email: email })
+            const isAdmin = user.role === 'admin'
+            res.send({ admin: isAdmin })
         })
 
 
-        app.put('/user/admin/:email', verifyJWT, async (req, res) => {
+        app.put('/user/admin/:email', verifyJWT,verifyAdmin, async (req, res) => {
             const email = req.params.email;
-            const requester = req.decoded.email //requester hocche j onno ekjon user k admin diccee
-            const requesterAccount =await usersCollection.findOne({ email: requester })
-            if (requesterAccount.role === 'admin') { //condition er maddome j request dicce she admin kina dekhsi,jodi tar role admin hoi ta hole she onno jon k admin dite parbe,,noito parbena...fornidden maessage dibe
+             //condition er maddome j request dicce she admin kina dekhsi,jodi tar role admin hoi ta hole she onno jon k admin dite parbe,,noito parbena...fornidden maessage dibe
 
                 const filter = { email: email }
                 const updateDoc = {
@@ -74,10 +84,8 @@ async function run() {
                 }
                 const result = await usersCollection.updateOne(filter, updateDoc);
                 res.send({ result });
-            }
-            else {
-                res.status(403).send({ message: 'Forbidden' })
-            }
+            
+            
 
 
         });
@@ -153,6 +161,25 @@ async function run() {
 
 
         });
+        app.post('/doctor', verifyJWT,verifyAdmin, async ( req,res) => {
+            const doctor = req.body
+            const result = await doctorsCollection.insertOne(doctor)
+            /* const query={name:doctor.name,email:doctor.email,specialty:doctor.specialty,img:doctor.img} */
+            res.send(result)
+        })
+        app.delete('/doctor/:email', verifyJWT,verifyAdmin, async ( req,res) => {
+            const email = req.params.email
+            const query={email:email}
+            const result = await doctorsCollection.deleteOne(query)
+            /* const query={name:doctor.name,email:doctor.email,specialty:doctor.specialty,img:doctor.img} */
+            res.send(result)
+            
+
+        })
+
+
+
+
         app.get('/booking', verifyJWT, async (req, res) => {
 
             const patient = req.query.patient;
@@ -172,6 +199,13 @@ async function run() {
 
 
         })
+        app.get('/doctor', async(req,res)=>{
+            const doctor=await doctorsCollection.find().toArray()
+            res.send(doctor);
+
+        })
+
+
 
 
 
