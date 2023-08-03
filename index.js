@@ -1,10 +1,11 @@
 const express = require('express')
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId, Transaction } = require('mongodb');
 const cors = require('cors');
 require('dotenv').config()
 const { json } = require('express/lib/response');
 const { query, response } = require('express');
 const jwt = require('jsonwebtoken')
+const stripe = require("stripe")('sk_test_51NaP9YIRxjIz7Efm3pMpaHNCPtacDG69uz6U68SNtEwU8Am5D8w7SaaeCd82wWlGTjmQUVij0IP6gdrn7rUWt2YX003mm3CMom')
 const app = express()
 const port = process.env.PORT || 8000
 
@@ -44,6 +45,7 @@ async function run() {
         const bookingsCollection = client.db("doctort's_portal").collection('bookings');
         const usersCollection = client.db("doctort's_portal").collection('users');
         const doctorsCollection = client.db("doctort's_portal").collection('doctor');
+        const paymentsCollection = client.db("doctort's_portal").collection('payments');
 
         const verifyAdmin = async (req, res, next) => {
             const requester = req.decoded.email //requester hocche j onno ekjon user k admin diccee
@@ -174,7 +176,6 @@ async function run() {
             res.send(result)
 
 
-
         })
         app.get('/payment/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
@@ -205,11 +206,47 @@ async function run() {
 
 
         })
+
+        app.patch('/booking/:id',verifyJWT,verifyAdmin, async(req,res)=>{
+            const id=req.params.id
+            const payment=req.body
+            const filter={_id:ObjectId(id)}
+            const updateDoc={
+                $set:{
+                    paid:true,
+                    transactionId:payment.transactionId
+                }
+            }
+            const updatedBooking=await bookingsCollection.updateOne(filter, updateDoc);
+            const result=await paymentsCollection.insertOne(payment)
+            res.send(updateDoc)
+        })
         app.get('/doctor', async (req, res) => {
             const doctor = await doctorsCollection.find().toArray()
             res.send(doctor);
 
-        })
+        });
+
+
+        app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+            const service = req.body;
+            const price = service.price
+            const amount = price * 100
+
+            // Create a PaymentIntent with the order amount and currency
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: "usd",
+                payment_method_types: ['card'],
+                /* automatic_payment_methods: {
+                    enabled: true,
+                }, */
+            });
+
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
+        });
 
 
 
